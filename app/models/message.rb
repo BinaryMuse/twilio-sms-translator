@@ -3,7 +3,7 @@ require "twilio-ruby"
 
 # Since we don't actually save our Message to
 # the database, it doesn't need to be an
-# ActiveRecord model (because AcctiveRecord
+# ActiveRecord model (because ActiveRecord
 # provides all the database abstractions).
 # It can be a plain Ruby object instead.
 class Message
@@ -42,39 +42,21 @@ class Message
       req.params['text'] = @content
     end
 
-    # The Ruby documentation for JSON.parse says:
+    # This is basically the same, but I think that
+    # "do a thing unless some other thing" reads
+    # pretty naturally and is easier than a whole
+    # if/else block.
     #
-    # > parse(source, opts = {})
-    # >
-    # > Parse the JSON document `source` into a Ruby data structure
-    # > and return it.
-    #
-    # Since it returns a Ruby data structure, and the input
-    # data is a JSON document with a top-level JS hash,
-    # the return data structure will be a Ruby hash.
-    # Rember, `data.success?` is a method call (for a
-    # method named `success?` on the hash `data`).
-    # But no such method exists; in fact, if you look
-    # at the response from a Yandex translate call,
-    # it only has the properties `code`,
-    # `lang`, and the `text` array. So it's successful
-    # if the code is 200, and failed otherwise,
-    # as per https://tech.yandex.com/translate/doc/dg/reference/translate-docpage/#codes
+    # `resp.success?` just checks to see if the status
+    # is 200, so if it's not, let's include the status we
+    # got instead in the error message.
+    raise RuntimeError, "Unexpected Yandex response code: #{resp.status}" unless resp.success?
     data = JSON.parse(resp.body)
-    if data['code'] == 200
-      # We just want to return the text from the data.
-      # We don't have to assign it to anything, or use
-      # `return`, just make it the last expression.
-      data["text"][0]
-      # Note that we no longer call `send` here.
-      # The purpose of this method, per it's name,
-      # is to get the translation for the Message object
-      # the method was called on.
-    else
-      # If it failed, whoever called this method
-      # has to deal with it.
-      raise RuntimeError, "Unexpcted Yandex code returned: #{data['code']}"
-    end
+    # Note that we no longer call `send` here.
+    # The purpose of this method, per it's name,
+    # is to get the translation for the Message object
+    # the method was called on.
+    data["text"][0]
   end
 
   # In this case, when we call `send`, we're telling it to
